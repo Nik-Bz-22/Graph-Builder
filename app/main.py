@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from dataclasses import dataclass
 from tkinter import simpledialog, Menu
 import random
@@ -9,35 +10,111 @@ from .Utils.paths import RESOURCE_FILE
 from .Utils.file_manager import FileManager
 from .Algoritms.main import Algorithms
 
+class CustomNotebook(ttk.Notebook):
+    """A ttk Notebook with close buttons on each tab"""
 
+    __initialized = False
+
+    def __init__(self, *args, **kwargs):
+        if not self.__initialized:
+            self.__initialize_custom_style()
+            self.__inititialized = True
+
+        kwargs["style"] = "CustomNotebook"
+        ttk.Notebook.__init__(self, *args, **kwargs)
+
+        self._active = None
+
+        self.bind("<ButtonPress-1>", self.on_close_press, True)
+        self.bind("<ButtonRelease-1>", self.on_close_release)
+
+    def on_close_press(self, event):
+        """Called when the button is pressed over the close button"""
+
+        element = self.identify(event.x, event.y)
+
+        if "close" in element:
+            index = self.index("@%d,%d" % (event.x, event.y))
+            self.state(['pressed'])
+            self._active = index
+            return "break"
+
+    def on_close_release(self, event):
+        """Called when the button is released"""
+        if not self.instate(['pressed']):
+            return
+
+        element =  self.identify(event.x, event.y)
+        if "close" not in element:
+            # user moved the mouse off of the close button
+            return
+
+        index = self.index("@%d,%d" % (event.x, event.y))
+
+        if self._active == index:
+            self.forget(index)
+            self.event_generate("<<NotebookTabClosed>>")
+
+        self.state(["!pressed"])
+        self._active = None
+
+    def __initialize_custom_style(self):
+        style = ttk.Style()
+        self.images = (
+            tk.PhotoImage("img_close", data='''
+                R0lGODlhCAAIAMIBAAAAADs7O4+Pj9nZ2Ts7Ozs7Ozs7Ozs7OyH+EUNyZWF0ZWQg
+                d2l0aCBHSU1QACH5BAEKAAQALAAAAAAIAAgAAAMVGDBEA0qNJyGw7AmxmuaZhWEU
+                5kEJADs=
+                '''),
+            tk.PhotoImage("img_closeactive", data='''
+                R0lGODlhCAAIAMIEAAAAAP/SAP/bNNnZ2cbGxsbGxsbGxsbGxiH5BAEKAAQALAAA
+                AAAIAAgAAAMVGDBEA0qNJyGw7AmxmuaZhWEU5kEJADs=
+                '''),
+            tk.PhotoImage("img_closepressed", data='''
+                R0lGODlhCAAIAMIEAAAAAOUqKv9mZtnZ2Ts7Ozs7Ozs7Ozs7OyH+EUNyZWF0ZWQg
+                d2l0aCBHSU1QACH5BAEKAAQALAAAAAAIAAgAAAMVGDBEA0qNJyGw7AmxmuaZhWEU
+                5kEJADs=
+            ''')
+        )
+
+        style.element_create("close", "image", "img_close",
+                            ("active", "pressed", "!disabled", "img_closepressed"),
+                            ("active", "!disabled", "img_closeactive"), border=8, sticky='')
+        style.layout("CustomNotebook", [("CustomNotebook.client", {"sticky": "nswe"})])
+        style.layout("CustomNotebook.Tab", [
+            ("CustomNotebook.tab", {
+                "sticky": "nswe",
+                "children": [
+                    ("CustomNotebook.padding", {
+                        "side": "top",
+                        "sticky": "nswe",
+                        "children": [
+                            ("CustomNotebook.focus", {
+                                "side": "top",
+                                "sticky": "nswe",
+                                "children": [
+                                    ("CustomNotebook.label", {"side": "left", "sticky": ''}),
+                                    ("CustomNotebook.close", {"side": "left", "sticky": ''}),
+                                ]
+                        })
+                    ]
+                })
+            ]
+        })
+    ])
 
 class SelectionArea:
     def __init__(self, canvas):
-        """
-        Класс для выделения объектов в прямоугольной области на указанном холсте (Canvas).
-        """
         self.canvas = canvas
-        self.rect_id = None  # ID для прямоугольника выделения
+        self.rect_id = None
         self.start_x = None
         self.start_y = None
         self.nodes = []
 
-        # Привязываем события мыши
-        self.canvas.bind("<Button-1>", self.on_mouse_down)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
-        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_release)
-
-    def on_mouse_down(self, event):
-
-        """Начало выделения."""
+    def on_mouse_down_s(self, event):
         self.start_x = event.x
         self.start_y = event.y
-        # Создаем прямоугольник выделения
         self.rect_id = self.canvas.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline="black")
-        # for n in self.nodes:
-        #     if n.is_clicked(event.x, event.y):
-        #         self.dragging_node = None
-        #         return
 
 
     def on_mouse_drag(self, event):
@@ -53,12 +130,12 @@ class SelectionArea:
         # Получаем координаты выделенной области
         x1, y1 = min(self.start_x, end_x), min(self.start_y, end_y)
         x2, y2 = max(self.start_x, end_x), max(self.start_y, end_y)
-        print(self.nodes)
+        # print(self.nodes)
         # Проходим по всем узлам и проверяем, кто попал в выделенную область
         for node in self.nodes:
             if node.is_inside(x1, y1, x2, y2):
                 node.select()  # Выделяем узел
-                print(node, "selected")
+                # print(node, "selected")
             else:
                 node.deselect()  # Снимаем выделение с узла
 
@@ -77,7 +154,7 @@ class SelectionArea:
         for node in self.nodes:
             if node.is_inside(x1, y1, x2, y2):
                 node.select()  # Выделяем узел
-                print(node, "selected")
+                # print(node, "selected")
             else:
                 node.deselect()
 
@@ -99,7 +176,7 @@ class MouseHandler:
     def __init__(self):
         self.dragging_node = None
         self.selectedNode = None
-        self.edges:list = None
+        self.edges:list = []
         self.connecting:bool = None
         self.canvas = None
         self.num_of_nodes = None
@@ -136,7 +213,7 @@ class MouseHandler:
 
     def double_left_click(self, event):
         clicked_items = self.canvas.find_overlapping(event.x - 1, event.y - 1, event.x + 1, event.y + 1)
-        print(clicked_items.x)
+        # print(clicked_items.x)
 
     def canvas_mouseRightClick(self, event):
         for n in self.nodes:
@@ -194,62 +271,51 @@ class MouseHandler:
             self.nodes.remove(nn)
 
 
-
-
-        # if self.connecting:
-        #     print(self.edges)
-        #     # Удаляем все инцидентные ребра
-        #     for edge in self.selectedNode.edges:
-        #         try:
-        #             self.edges.remove(edge)
-        #             edge.delete()
-        #
-        #         except ValueError:
-        #             pass
-        #     # self.selectedNode.edges.clear()
-        #
-        #
-        #     # Удаляем сам узел
-        #     self.selectedNode.delete()
-        #     self.nodes.remove(self.selectedNode)
-        #     self.selectedNode = None
-        #     self.connecting = False
-        #     # self.num_of_nodes -= 1
-        #
-
-
-
-
-
+    def select_all(self, event):
+        for n in self.nodes:
+            n.select()
+            print("select", n)
 
 class GBuilder(MouseHandler):
-    def __init__(self, root):
+    def __init__(self, tab, root):
         super().__init__()
         self.root = root
-        self.canvas = tk.Canvas(root, bg="#f7f7f5")
+        self.tab = tab
+        self.canvas = tk.Canvas(self.tab, bg="#e8b731")
         self.file_manager = FileManager()
         self.meta = Meta(self.nodes, self.edges, SelectionArea(self.canvas))
 
 
+        self.active_tab = 0
 
-        self.screen_width = self.root.winfo_screenwidth()
-        self.screen_height = self.root.winfo_screenheight()
-        # print(f"{self.screen_width=}    {self.screen_height=}")
 
+
+        self.screen_width = self.tab.winfo_screenwidth()
+        self.screen_height = self.tab.winfo_screenheight()
+        # # print(f"{self.screen_width=}    {self.screen_height=}")
+        #
         self.root.geometry(f"{self.screen_width}x{self.screen_height}")
-        self.nodes = []
-        self.edges = []
+        # self.nodes = []
+        # self.edges = []
 
 
         self.canvas.pack(fill=tk.BOTH, expand=True)
+
+
+        self.canvas.bind("<Button-1>", self.meta.select.on_mouse_down_s)
+        self.canvas.bind("<B1-Motion>", self.meta.select.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.meta.select.on_mouse_release)
+        # self.canvas.focus_set()
+        self.canvas.bind("<Control-a>", self.select_all)
+        # root.bind_all("<Control-a>", select_all)
 
         self.canvas.bind("<Double-Button-3>", self.double_right_click)
         self.canvas.tag_bind("node", "<Button-3>", self.canvas_mouseRightClick)
         self.canvas.tag_bind("node", "<B1-Motion>", self.on_mouse_drag)
         self.canvas.tag_bind("node", "<ButtonRelease-1>", self.on_mouse_release)
         self.canvas.tag_bind("node", "<Button-1>", self.on_double_click)
-        self.root.bind("<Delete>", self.del_node)
         self.canvas.tag_bind("node", "<Double-1>", self.double_left_click)
+        self.canvas.bind("<Delete>", self.del_node)
 
 
 
@@ -272,6 +338,7 @@ class GBuilder(MouseHandler):
 
     def clear(self):
         self.canvas.delete("all")
+        print(self, self.nodes)
         self.nodes.clear()
         self.edges.clear()
 
@@ -280,6 +347,7 @@ class GBuilder(MouseHandler):
         # 'Connecting Nodes Variables:
         self.connecting = False
         self.selectedNode = None
+        # print(self, "clear")
 
     def export(self):
         if self.num_of_nodes < 1:
@@ -315,7 +383,6 @@ class GBuilder(MouseHandler):
         #     graph_data.append(edge_data)
         for e in self.edges:
             graph.append((e.weight, (e.node1.x, e.node1.y), (e.node2.x, e.node2.y)))
-
 
 
         return graph
@@ -416,69 +483,148 @@ class GBuilder(MouseHandler):
 
 
 
+class App:
+    def __init__(self, root):
+        self._root = root
+        # self.notebook = ttk.Notebook(self._root)
+        self.notebook = CustomNotebook(self._root)
+        self.main_tab = tk.Canvas(self.notebook)
+        # self.notebook.add(self.main_tab)
+        # print(self.notebook.index(self.main_tab))
+        self.notebook.add(self.main_tab, text="Main")
+        self.current_tab_index = self.notebook.index(self.main_tab)
+        self.builders = {}
+
+        self.builders.update({self.current_tab_index: GBuilder(self.main_tab, self._root)})
+        self.notebook.pack(expand=True, fill="both")
+
+
+        self.algorithms = Algorithms()
+        self.mainmenu = Menu(self._root)
+
+        self.builder = self.builders[self.current_tab_index]
+
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
+        # self._root.bind_all("<Control-a>", self.select_all)
+
+
+    def init_menu(self):
+        builder = self.builders[self.current_tab_index]
+        # builder = self.builder
+        # print(builder)
+        filemenu = Menu(self.mainmenu, tearoff=0)
+        filemenu.add_command(label="Open Graph", command=lambda: self.load_graph())
+        filemenu.add_command(label="Save", command=lambda: self.save_graph())
+        filemenu.add_command(label="Save as")
+        filemenu.add_separator()
+        filemenu.add_command(label="Exit")
+
+        algomenu = Menu(self.mainmenu, tearoff=0)
+        algomenu.add_command(label="Kraskal",
+                             command=lambda: self.kruskal())
+
+        self.mainmenu.add_cascade(label="File", menu=filemenu)
+        self.mainmenu.add_cascade(label="Algorithms", menu=algomenu)
+
+
+    def add_new_tab(self):
+        new_tab = tk.Canvas(self.notebook, bg="lightgray")
+        b = GBuilder(new_tab, self._root)
+        self.notebook.add(new_tab, text=f"Tab #{str(len(self.notebook.tabs()))}")
+        self.builders.update({self.notebook.index(new_tab): b})
+        return b
+
+        # import_btn = tk.Button(btn_frame, image=p3, command=lambda: self.notebook.add(new_tab, text="Вкладка 2"))
+        # print(self.notebook.index(new_tab))
+
+    def clear_window(self):
+        self.builder.clear()
+
+    def load_graph(self):
+        self.builder.open_graph()
+
+    def save_graph(self):
+        self.builder.save_file()
+
+    def kruskal(self):
+        builder = self.add_new_tab()
+        builder.print_graph_on(builder.canvas, self.algorithms.kruskal(self.builder.get_graph()))
+
+
+
+
+
+    def on_tab_change(self, event):
+        self.current_tab_index = self.notebook.index("current")
+        # print(self.current_tab_index)
+        self.builder = self.builders[self.current_tab_index]
+        self.builder.canvas.focus_set()
+        # print(self.builder)
+
+
+
+
+
+
+
+
+    def render(self):
+
+        self._root.config(menu=self.mainmenu)
+
+        self.init_menu()
+
+
+
+
+
+        # print(self.notebook.index(self.main_tab))
+
+        btn_frame = tk.Frame(self._root, bg="#f2eb22")
+        btn_frame.pack()
+
+        # p1 = tk.PhotoImage(file=RESOURCE_FILE / "button_export.png")
+        # export_btn = tk.Button(btn_frame, image=p1, command=builder.save_file)
+        # export_btn.pack(padx=5, pady=10, side=tk.LEFT)
+
+        p2 = tk.PhotoImage(file=RESOURCE_FILE / "button_clear.png")
+        clear_btn = tk.Button(btn_frame, image=p2, command=self.clear_window)
+        clear_btn.pack(padx=5, pady=10, side=tk.LEFT)
+
+        # Add the import buttun for import graph to workspace
+        p3 = tk.PhotoImage(file=RESOURCE_FILE / "button_clear.png")
+
+        # import_btn = tk.Button(btn_frame, image=p3, command=lambda: builder.print_graph_on(builder.canvas))
+        # new_tab = tk.Canvas(self.notebook, bg="lightgray")
+        # b = GBuilder(new_tab, self._root)
+
+        import_btn = tk.Button(btn_frame, image=p3, command=lambda: self.add_new_tab())
+        # self.builders.update({self.notebook.index(new_tab): b})
+        # print(self.notebook.index(new_tab))
+
+
+        # Добавляем элемент на Canvas
+        # tab2.create_text(100, 50, text="Содержимое второй вкладки", fill="black"))
+        import_btn.pack(padx=5, pady=10, side=tk.LEFT)
+
+        self._root.mainloop()
+
+
 def main():
-    a = Algorithms()
     _root = tk.Tk()
     _root.title("Graph Builder")
     _root.resizable(True, True)
     _root.configure(background="#f2eb22")
-    mainmenu = Menu(_root)
-    _root.config(menu=mainmenu)
-
-    filemenu = Menu(mainmenu, tearoff=0)
-    filemenu.add_command(label="Open Graph", command=lambda: builder.open_graph())
-    filemenu.add_command(label="Save", command=lambda: builder.save_file())
-    filemenu.add_command(label="Save as")
-    filemenu.add_separator()
-    filemenu.add_command(label="Exit")
-
-    algomenu = Menu(mainmenu, tearoff=0)
 
 
 
-    algomenu.add_command(label="Kraskal", command=lambda: builder.print_graph_on(builder.canvas, a.kruskal(builder.get_graph())))
-
-    mainmenu.add_cascade(label="File", menu=filemenu)
-    mainmenu.add_cascade(label="Algorithms", menu=algomenu)
-    # menubar.add_command(label="File", command=lambda : print("hi"))
-    # menubar.add_command(label="Algoritms", command=lambda : print("By"))
+    app = App(_root)
+    app.render()
 
 
 
 
 
-
-    # _root
-    builder = GBuilder(_root)
-
-
-
-    # menu_frame = tk.Canvas(_root, width=200, height=200)
-    # menu_frame.pack(side=tk.RIGHT, padx=5, pady=100)
-
-    btn_frame = tk.Frame(_root, bg="#f2eb22")
-    btn_frame.pack()
-
-    p1 = tk.PhotoImage(file=RESOURCE_FILE / "button_export.png")
-    export_btn = tk.Button(btn_frame, image=p1, command=builder.save_file)
-    export_btn.pack(padx=5, pady=10, side=tk.LEFT)
-
-    p2 = tk.PhotoImage(file=RESOURCE_FILE / "button_clear.png")
-    clear_btn = tk.Button(btn_frame, image=p2, command=builder.clear)
-    clear_btn.pack(padx=5, pady=10, side=tk.LEFT)
-
-    # Add the import buttun for import graph to workspace
-    p3 = tk.PhotoImage(file=RESOURCE_FILE / "button_clear.png")
-
-
-
-    import_btn = tk.Button(btn_frame, image=p3, command=lambda: builder.print_graph_on(builder.canvas))
-    import_btn.pack(padx=5, pady=10, side=tk.LEFT)
-
-
-
-
-    _root.mainloop()
 
 
 
