@@ -27,10 +27,10 @@ class Algorithms:
             valid_graph[u][v]["weight"] = segm
 
         result_graph = [
-            (f"{data['weight']:.4}", node1, node2)
+            (f"{data['weight']:.3}", node1, node2)
             for node1, node2, data in valid_graph.edges(data=True)
         ]
-        return {"graph": result_graph, "data": radic_sum}
+        return {"graph": result_graph, "data": round(radic_sum, 3)}
 
     def max_tree(self, graph: GRAPH_TYPE) -> dict:
         valid_graph = self._to_graph(graph)

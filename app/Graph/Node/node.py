@@ -1,5 +1,5 @@
 class Node:
-    def __init__(self, x, y, index, canvas_name, color=(59, 112, 219)):
+    def __init__(self, x, y, index, canvas_name, color=(250, 0, 0)):
         self.is_selected = None
         self.canvas = None
         r = 8
@@ -17,7 +17,7 @@ class Node:
         self.oval = canvas_name.create_oval(
             x0, y0, x1, y1, fill="#%02x%02x%02x" % self.color, tags="node"
         )
-        self.edges = []  # Список всех ребер, соединенных с этим узлом
+        self.edges = []
 
         # self.text_item = canvas_name.create_text(
         #     x, y,

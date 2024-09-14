@@ -1,3 +1,4 @@
+import _tkinter
 import tkinter as tk
 from dataclasses import dataclass
 from tkinter import simpledialog, Menu
@@ -27,6 +28,7 @@ class MouseHandler:
         self.canvas = None
         self.num_of_nodes: int = 0
         self.nodes: list = []
+        self.selectedNodes:list = []
 
     def add_node(self, node: Node):
         if isinstance(self, GBuilder):
@@ -34,6 +36,50 @@ class MouseHandler:
             self.meta.select.nodes.append(node)
         else:
             self.nodes.append(node)
+
+    def on_mouse_drag(self, event):
+        if isinstance(self, GBuilder):
+            if not hasattr(self, 'initial_drag_coords'):
+                self.initial_drag_coords = {
+                    'mouse_x': event.x,
+                    'mouse_y': event.y,
+                    'nodes': []
+                }
+                for n in self.meta.select.nodes:
+                    if n.is_selected:
+                        self.initial_drag_coords['nodes'].append(
+                            {'node': n, 'x': n.x, 'y': n.y}
+                        )
+
+            dx = event.x - self.initial_drag_coords['mouse_x']
+            dy = event.y - self.initial_drag_coords['mouse_y']
+
+            for entry in self.initial_drag_coords['nodes']:
+                node = entry['node']
+                initial_x = entry['x']
+                initial_y = entry['y']
+
+                new_x = initial_x + dx
+                new_y = initial_y + dy
+
+                self.canvas.coords(
+                    node.oval,
+                    new_x - node.r, new_y - node.r,
+                    new_x + node.r, new_y + node.r
+                )
+
+                node.x = new_x
+                node.y = new_y
+
+                node.update_edges()
+                node.update_node(new_x, new_y)
+
+    def on_mouse_release(self, event):
+        if hasattr(self, 'initial_drag_coords'):
+            del self.initial_drag_coords
+        # self.dragging_node = None
+        for n in self.meta.select.nodes:
+            n.deselect()
 
     def add_nodes(self, nodes: list[Node]):
         for n in nodes:
@@ -50,8 +96,9 @@ class MouseHandler:
         new_node = Node(event.x, event.y, self.num_of_nodes, self.canvas)
         self.add_node(new_node)
 
-    def double_left_click(self, event):
-        self.canvas.find_overlapping(event.x - 1, event.y - 1, event.x + 1, event.y + 1)
+    # def double_left_click(self, event):
+    #     print(self.canvas.find_overlapping(event.x - 1, event.y - 1, event.x + 1, event.y + 1).x)
+
 
     def canvas_mouse_right_click(self, event):
         for n in self.nodes:
@@ -68,29 +115,36 @@ class MouseHandler:
                     n.select()
                     self.selectedNode = n
                     self.connecting = True
+                    # self.selectedNodes.append(n)
 
-    def on_double_click(self, event):
+    # def on_mouse_drag(self, event):
+    #     if self.dragging_node:
+    #         self.canvas.coords(
+    #             self.dragging_node.oval,
+    #             event.x - self.dragging_node.r,
+    #             event.y - self.dragging_node.r,
+    #             event.x + self.dragging_node.r,
+    #             event.y + self.dragging_node.r,
+    #         )
+    #         self.dragging_node.x = event.x
+    #         self.dragging_node.y = event.y
+    #         self.dragging_node.update_edges()
+    #         self.dragging_node.update_node(event.x, event.y)
+
+    def on_left_click(self, event):
+        # for n in self.nodes:
+        #     if n.is_clicked(event.x, event.y):
+        #         self.dragging_node = n
+        #         return
         for n in self.nodes:
             if n.is_clicked(event.x, event.y):
-                self.dragging_node = n
+                n.select()
+                self.selectedNodes.append(n)
                 return
 
-    def on_mouse_drag(self, event):
-        if self.dragging_node:
-            self.canvas.coords(
-                self.dragging_node.oval,
-                event.x - self.dragging_node.r,
-                event.y - self.dragging_node.r,
-                event.x + self.dragging_node.r,
-                event.y + self.dragging_node.r,
-            )
-            self.dragging_node.x = event.x
-            self.dragging_node.y = event.y
-            self.dragging_node.update_edges()
-            self.dragging_node.update_node(event.x, event.y)
 
-    def on_mouse_release(self, event):
-        self.dragging_node = None
+    # def on_mouse_release(self, event):
+    #     self.dragging_node = None
 
     def del_node(self, event):
         to_del = []
@@ -112,6 +166,7 @@ class MouseHandler:
     def select_all(self, event):
         for n in self.nodes:
             n.select()
+            # self.selectedNodes.append(n)
 
 
 class GBuilder(MouseHandler):
@@ -132,8 +187,8 @@ class GBuilder(MouseHandler):
             builder.canvas.tag_bind(
                 "node", "<ButtonRelease-1>", builder.on_mouse_release
             )
-            builder.canvas.tag_bind("node", "<Button-1>", builder.on_double_click)
-            builder.canvas.tag_bind("node", "<Double-1>", builder.double_left_click)
+            builder.canvas.tag_bind("node", "<Button-1>", builder.on_left_click)
+            # builder.canvas.tag_bind("node", "<Double-1>", builder.double_left_click)
             builder.canvas.bind("<Delete>", builder.del_node)
 
     def __init__(self, tab, root):
@@ -245,13 +300,17 @@ class App:
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
         self.notebook.bind("<Button-3>", self.show_context_menu)
 
+        self.menus = []
+
     def init_menu(self):
         filemenu = Menu(self.mainmenu, tearoff=0)
-        filemenu.add_command(label="Open Graph", command=lambda: self.open_graph())
+        filemenu.add_command(label="Open", command=lambda: self.open_graph())
         filemenu.add_command(label="Save", command=lambda: self.save_graph())
         filemenu.add_command(label="Save as", command=lambda: self.save_as())
         filemenu.add_separator()
-        filemenu.add_command(label="Exit")
+        filemenu.add_command(label="Exit", command=exit)
+
+        self.menus.append(filemenu)
 
         algomenu = Menu(self.mainmenu, tearoff=0)
         algomenu.add_command(
@@ -279,8 +338,15 @@ class App:
             ),
         )
 
+        self.menus.append(algomenu)
+
+
         toolmenu = Menu(self.mainmenu, tearoff=0)
         toolmenu.add_command(label="Add new tab", command=self.add_new_tab)
+
+
+        self.menus.append(toolmenu)
+
 
         self.mainmenu.add_cascade(label="File", menu=filemenu)
         self.mainmenu.add_cascade(label="Algorithms", menu=algomenu)
@@ -291,6 +357,13 @@ class App:
             label="Close tab", command=lambda: self.close_tab()
         )
         self.context_menu.add_command(label="Rename", command=lambda: self.rename_tab())
+
+        # self.context_menu.bind("<FocusOut>", self.close_context_menu)
+        self.menus.append(self.context_menu)
+
+
+
+
 
     def close_tab(self):
         notebook = self.notebook
@@ -307,7 +380,14 @@ class App:
         notebook = self.notebook
 
         try:
-            tab_id = notebook.index(f"@{event.x},{event.y}")
+            # print(f"@{event.x},{event.y}")
+            try:
+                tab_id = notebook.index(f"@{event.x},{event.y}")
+            except _tkinter.TclError:
+                self.context_menu.tk_popup(event.x_root, event.y_root)
+                return
+
+
             notebook.select(tab_id)
             self.context_menu.tk_popup(event.x_root, event.y_root)
         finally:
@@ -361,7 +441,7 @@ class App:
     class Console:
         def __init__(self, root):
             self.root = root
-            self.console = tk.Text(self.root, height=6, font=("Arial", 16))
+            self.console = tk.Text(self.root, height=4, font=("Arial", 16))
             self.console.config(state=tk.DISABLED)
             self.console.pack(fill=tk.X)
             # self.clear_button = tk.Button(root, text="⁝", command=self.clear_text, fg='white', relief=tk.FLAT, width=1, height=1, padx=10, pady=3, font=("Arial", 16), borderwidth=0)
