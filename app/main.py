@@ -1,4 +1,5 @@
 import _tkinter
+import math
 import tkinter as tk
 from dataclasses import dataclass
 from tkinter import simpledialog, Menu
@@ -113,8 +114,6 @@ class MouseHandler:
                     self.connecting = True
                     # self.selectedNodes.append(n)
 
-
-
     def on_left_click(self, event):
         self.connecting = False
 
@@ -123,7 +122,6 @@ class MouseHandler:
                 n.select()
                 self.selectedNodes.append(n)
                 return
-
 
     def del_node(self, event):
         to_del = []
@@ -145,6 +143,29 @@ class MouseHandler:
     def select_all(self, event):
         for n in self.nodes:
             n.select()
+            
+
+    def rotate_selected_part(self, event):
+        self.selected_node = self.selectedNode
+        center_x, center_y = self.selected_node.x, self.selected_node.y
+        angle_degrees = 15
+        angle_radians = math.radians(angle_degrees)
+
+
+        for node in self.nodes:
+            if node != self.selected_node:
+                x, y = node.x, node.y
+
+                x_shifted = x - center_x
+                y_shifted = y - center_y
+
+                new_x = round(x_shifted * math.cos(angle_radians) - y_shifted * math.sin(angle_radians))
+                new_y = round(x_shifted * math.sin(angle_radians) + y_shifted * math.cos(angle_radians))
+
+                node.x, node.y = (new_x + center_x, new_y + center_y)
+
+                node.update_node(new_x + center_x, new_y + center_y)
+                node.update_edges()
 
 
 class GBuilder(MouseHandler):
@@ -153,12 +174,14 @@ class GBuilder(MouseHandler):
             def temp(e):
                 builder.connecting = False
                 builder.meta.select.on_mouse_down_s(e)
+
             builder.canvas.bind("<Button-1>", lambda e: temp(e))
             builder.canvas.bind("<B1-Motion>", builder.meta.select.on_mouse_drag)
             builder.canvas.bind(
                 "<ButtonRelease-1>", builder.meta.select.on_mouse_release
             )
             builder.canvas.bind("<Control-a>", builder.select_all)
+            builder.canvas.bind("<Control-r>", builder.rotate_selected_part)
 
             builder.canvas.bind("<Double-Button-3>", builder.double_right_click)
             builder.canvas.tag_bind(
@@ -189,7 +212,6 @@ class GBuilder(MouseHandler):
         self.CallBacker(self)
 
         self.from_file = None
-
 
     def integer_generator(self, start=0, step=1):
         current = start

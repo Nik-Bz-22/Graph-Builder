@@ -54,7 +54,7 @@ class Algorithms:
 
     @staticmethod
     def calc_weight(graph: GRAPH_TYPE) -> dict:
-        total_weight = sum(edge[0] for edge in graph)
+        total_weight = sum(float(edge[0]) for edge in graph)
         return {"graph": None, "data": total_weight}
 
     def get_invariant(self, graph: GRAPH_TYPE) -> dict:
