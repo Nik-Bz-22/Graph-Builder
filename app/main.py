@@ -28,7 +28,7 @@ class MouseHandler:
         self.canvas = None
         self.num_of_nodes: int = 0
         self.nodes: list = []
-        self.selectedNodes:list = []
+        self.selectedNodes: list = []
 
     def add_node(self, node: Node):
         if isinstance(self, GBuilder):
@@ -39,33 +39,35 @@ class MouseHandler:
 
     def on_mouse_drag(self, event):
         if isinstance(self, GBuilder):
-            if not hasattr(self, 'initial_drag_coords'):
+            if not hasattr(self, "initial_drag_coords"):
                 self.initial_drag_coords = {
-                    'mouse_x': event.x,
-                    'mouse_y': event.y,
-                    'nodes': []
+                    "mouse_x": event.x,
+                    "mouse_y": event.y,
+                    "nodes": [],
                 }
                 for n in self.meta.select.nodes:
                     if n.is_selected:
-                        self.initial_drag_coords['nodes'].append(
-                            {'node': n, 'x': n.x, 'y': n.y}
+                        self.initial_drag_coords["nodes"].append(
+                            {"node": n, "x": n.x, "y": n.y}
                         )
 
-            dx = event.x - self.initial_drag_coords['mouse_x']
-            dy = event.y - self.initial_drag_coords['mouse_y']
+            dx = event.x - self.initial_drag_coords["mouse_x"]
+            dy = event.y - self.initial_drag_coords["mouse_y"]
 
-            for entry in self.initial_drag_coords['nodes']:
-                node = entry['node']
-                initial_x = entry['x']
-                initial_y = entry['y']
+            for entry in self.initial_drag_coords["nodes"]:
+                node = entry["node"]
+                initial_x = entry["x"]
+                initial_y = entry["y"]
 
                 new_x = initial_x + dx
                 new_y = initial_y + dy
 
                 self.canvas.coords(
                     node.oval,
-                    new_x - node.r, new_y - node.r,
-                    new_x + node.r, new_y + node.r
+                    new_x - node.r,
+                    new_y - node.r,
+                    new_x + node.r,
+                    new_y + node.r,
                 )
 
                 node.x = new_x
@@ -75,9 +77,8 @@ class MouseHandler:
                 node.update_node(new_x, new_y)
 
     def on_mouse_release(self, event):
-        if hasattr(self, 'initial_drag_coords'):
+        if hasattr(self, "initial_drag_coords"):
             del self.initial_drag_coords
-        # self.dragging_node = None
         for n in self.meta.select.nodes:
             n.deselect()
 
@@ -88,17 +89,12 @@ class MouseHandler:
     def double_right_click(self, event):
         if self.connecting:
             return
-        # Check for collision:
         for n in self.nodes:
             if n.is_collide(event.x, event.y):
                 return
         self.num_of_nodes += 1
         new_node = Node(event.x, event.y, self.num_of_nodes, self.canvas)
         self.add_node(new_node)
-
-    # def double_left_click(self, event):
-    #     print(self.canvas.find_overlapping(event.x - 1, event.y - 1, event.x + 1, event.y + 1).x)
-
 
     def canvas_mouse_right_click(self, event):
         for n in self.nodes:
@@ -117,34 +113,17 @@ class MouseHandler:
                     self.connecting = True
                     # self.selectedNodes.append(n)
 
-    # def on_mouse_drag(self, event):
-    #     if self.dragging_node:
-    #         self.canvas.coords(
-    #             self.dragging_node.oval,
-    #             event.x - self.dragging_node.r,
-    #             event.y - self.dragging_node.r,
-    #             event.x + self.dragging_node.r,
-    #             event.y + self.dragging_node.r,
-    #         )
-    #         self.dragging_node.x = event.x
-    #         self.dragging_node.y = event.y
-    #         self.dragging_node.update_edges()
-    #         self.dragging_node.update_node(event.x, event.y)
+
 
     def on_left_click(self, event):
-        # for n in self.nodes:
-        #     if n.is_clicked(event.x, event.y):
-        #         self.dragging_node = n
-        #         return
+        self.connecting = False
+
         for n in self.nodes:
             if n.is_clicked(event.x, event.y):
                 n.select()
                 self.selectedNodes.append(n)
                 return
 
-
-    # def on_mouse_release(self, event):
-    #     self.dragging_node = None
 
     def del_node(self, event):
         to_del = []
@@ -166,13 +145,15 @@ class MouseHandler:
     def select_all(self, event):
         for n in self.nodes:
             n.select()
-            # self.selectedNodes.append(n)
 
 
 class GBuilder(MouseHandler):
     class CallBacker:
         def __init__(self, builder):
-            builder.canvas.bind("<Button-1>", builder.meta.select.on_mouse_down_s)
+            def temp(e):
+                builder.connecting = False
+                builder.meta.select.on_mouse_down_s(e)
+            builder.canvas.bind("<Button-1>", lambda e: temp(e))
             builder.canvas.bind("<B1-Motion>", builder.meta.select.on_mouse_drag)
             builder.canvas.bind(
                 "<ButtonRelease-1>", builder.meta.select.on_mouse_release
@@ -207,11 +188,8 @@ class GBuilder(MouseHandler):
 
         self.CallBacker(self)
 
-        # self.num_of_nodes = 0
-        # self.dragging_node = None
         self.from_file = None
-        # self.connecting = False
-        # self.selectedNode:Node = None
+
 
     def integer_generator(self, start=0, step=1):
         current = start
@@ -340,13 +318,10 @@ class App:
 
         self.menus.append(algomenu)
 
-
         toolmenu = Menu(self.mainmenu, tearoff=0)
         toolmenu.add_command(label="Add new tab", command=self.add_new_tab)
 
-
         self.menus.append(toolmenu)
-
 
         self.mainmenu.add_cascade(label="File", menu=filemenu)
         self.mainmenu.add_cascade(label="Algorithms", menu=algomenu)
@@ -358,12 +333,7 @@ class App:
         )
         self.context_menu.add_command(label="Rename", command=lambda: self.rename_tab())
 
-        # self.context_menu.bind("<FocusOut>", self.close_context_menu)
         self.menus.append(self.context_menu)
-
-
-
-
 
     def close_tab(self):
         notebook = self.notebook
@@ -380,13 +350,11 @@ class App:
         notebook = self.notebook
 
         try:
-            # print(f"@{event.x},{event.y}")
             try:
                 tab_id = notebook.index(f"@{event.x},{event.y}")
             except _tkinter.TclError:
                 self.context_menu.tk_popup(event.x_root, event.y_root)
                 return
-
 
             notebook.select(tab_id)
             self.context_menu.tk_popup(event.x_root, event.y_root)

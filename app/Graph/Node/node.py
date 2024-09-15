@@ -71,7 +71,3 @@ class Node:
 
     def __hash__(self):
         return hash((self.x, self.y))
-
-    # def __del__(self):
-    #     if self.is_selected:
-    #         self.canvas_name.delete(self.oval)
