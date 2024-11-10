@@ -40,5 +40,6 @@ To work with the project, you need to install some dependencies. Make sure you h
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/graph-algorithms.git
-   cd graph-algorithms
+   git clone https://github.com/Nik-Bz-22/Graph-Builder.git
+   cd Graph-Builder
+      ```
