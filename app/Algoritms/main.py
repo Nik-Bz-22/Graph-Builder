@@ -39,7 +39,6 @@ class Algorithms:
             (data["weight"], node1, node2)
             for node1, node2, data in mst.edges(data=True)
         ]
-        # return  mst_edges
         return {"graph": mst_edges, "data": None}
 
     def min_tree(self, graph: GRAPH_TYPE) -> dict:
@@ -49,13 +48,12 @@ class Algorithms:
             (data["weight"], node1, node2)
             for node1, node2, data in mst.edges(data=True)
         ]
-        # return  mst_edges
         return {"graph": mst_edges, "data": None}
 
     @staticmethod
     def calc_weight(graph: GRAPH_TYPE) -> dict:
         total_weight = sum(float(edge[0]) for edge in graph)
-        return {"graph": None, "data": total_weight}
+        return {"graph": None, "data": f"Weight: {total_weight}"}
 
     def get_invariant(self, graph: GRAPH_TYPE) -> dict:
         max_tree = self.max_tree(graph)

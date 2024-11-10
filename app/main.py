@@ -30,13 +30,7 @@ class MouseHandler:
         self.num_of_nodes: int = 0
         self.nodes: list = []
         self.selectedNodes: list = []
-
-    def add_node(self, node: Node):
-        if isinstance(self, GBuilder):
-            self.nodes.append(node)
-            self.meta.select.nodes.append(node)
-        else:
-            self.nodes.append(node)
+        self.undo_stack = []
 
     def on_mouse_drag(self, event):
         if isinstance(self, GBuilder):
@@ -83,6 +77,21 @@ class MouseHandler:
         for n in self.meta.select.nodes:
             n.deselect()
 
+    # TODO: add functionality to revert changes by clicking on Crtl + Z
+
+    def add_random_node(self):
+        if isinstance(self, GBuilder):
+            new_node = Node(x=100, y=100, index=1000, canvas_name=self.canvas)
+            # print(new_node)
+            self.add_node(new_node)
+
+    def add_node(self, node: Node):
+        if isinstance(self, GBuilder):
+            self.nodes.append(node)
+            self.meta.select.nodes.append(node)
+        else:
+            self.nodes.append(node)
+
     def add_nodes(self, nodes: list[Node]):
         for n in nodes:
             self.add_node(n)
@@ -123,34 +132,56 @@ class MouseHandler:
                 self.selectedNodes.append(n)
                 return
 
+    # def del_node(self, event):
+    #     to_del = []
+    #     for n in self.nodes:
+    #         if n.is_selected:
+    #             for edge in n.edges:
+    #                 try:
+    #                     self.edges.remove(edge)
+    #                     edge.delete()
+
+    #                 except ValueError:
+    #                     pass
+    #             n.delete()
+    #             to_del.append(n)
+
+    #     for nn in to_del:
+    #         self.nodes.remove(nn)
+
     def del_node(self, event):
         to_del = []
+        deleted_data = []  # To store information about deleted nodes and edges
         for n in self.nodes:
             if n.is_selected:
+                deleted_edges = []
                 for edge in n.edges:
                     try:
                         self.edges.remove(edge)
                         edge.delete()
-
+                        deleted_edges.append(edge)
                     except ValueError:
                         pass
                 n.delete()
                 to_del.append(n)
+                deleted_data.append((n, deleted_edges))
 
         for nn in to_del:
             self.nodes.remove(nn)
 
+        # Add the deleted data to the undo stack
+        if deleted_data:
+            self.undo_stack.append(deleted_data)
+
     def select_all(self, event):
         for n in self.nodes:
             n.select()
-            
 
     def rotate_selected_part(self, event):
         self.selected_node = self.selectedNode
         center_x, center_y = self.selected_node.x, self.selected_node.y
-        angle_degrees = 15
+        angle_degrees = 5
         angle_radians = math.radians(angle_degrees)
-
 
         for node in self.nodes:
             if node != self.selected_node:
@@ -159,8 +190,14 @@ class MouseHandler:
                 x_shifted = x - center_x
                 y_shifted = y - center_y
 
-                new_x = round(x_shifted * math.cos(angle_radians) - y_shifted * math.sin(angle_radians))
-                new_y = round(x_shifted * math.sin(angle_radians) + y_shifted * math.cos(angle_radians))
+                new_x = round(
+                    x_shifted * math.cos(angle_radians)
+                    - y_shifted * math.sin(angle_radians)
+                )
+                new_y = round(
+                    x_shifted * math.sin(angle_radians)
+                    + y_shifted * math.cos(angle_radians)
+                )
 
                 node.x, node.y = (new_x + center_x, new_y + center_y)
 
@@ -184,6 +221,10 @@ class GBuilder(MouseHandler):
             builder.canvas.bind("<Control-r>", builder.rotate_selected_part)
 
             builder.canvas.bind("<Double-Button-3>", builder.double_right_click)
+            # add event handlers for key "a"
+            builder.canvas.bind("<a>", builder.double_right_click)
+            builder.canvas.bind("<Control-z>", builder.undo)
+
             builder.canvas.tag_bind(
                 "node", "<Button-3>", builder.canvas_mouse_right_click
             )
@@ -200,6 +241,7 @@ class GBuilder(MouseHandler):
         self.root = root
         self.tab = tab
         self.canvas = tk.Canvas(self.tab, bg="white")
+
         self.file_manager = FileManager()
         self.meta = Meta(self.nodes, self.edges, SelectionArea(self.canvas))
         self.active_tab = 0
@@ -227,6 +269,31 @@ class GBuilder(MouseHandler):
         self.connecting = False
         self.selectedNode = None
 
+    # TODO:
+    # def undo(self, event):
+    #     if not self.undo_stack:
+    #         print("Undo")
+    #         return
+    #
+    #     deleted_data = self.undo_stack.pop()
+    #     # print(deleted_data)
+    #     for node, edges in deleted_data:
+    #         # print(node, edges)
+    #         print(node.x)
+    #         print(node.y)
+    #         print(node.index)
+    #         print(node.canvas_name)
+    #         self.add_node(node)
+    #         # Restore the node
+    #         # self.nodes.append(node)
+    #         # node.redraw()
+    #
+    #         # for edge in edges:
+    #         #     self.edges.append(edge)
+    #         #     edge.redraw()
+    #
+    #     self.canvas.update()
+
     def get_graph(self) -> GRAPH_TYPE:
         graph: GRAPH_TYPE = []
         for e in self.edges:
@@ -234,7 +301,7 @@ class GBuilder(MouseHandler):
         return graph
 
     def print_graph_on(self, on, graph: GRAPH_TYPE):
-        self.canvas.delete("all")
+        # self.canvas.delete("all")
         nodes: set[Node] = set()
         local_edges = dict()
         for edge in graph:
@@ -280,7 +347,8 @@ class App:
         self.console = None
         self.context_menu = None
         self._root = root
-        # self.notebook = ttk.Notebook(self._root)
+        self.bg_image = None
+        self.bg_images = []  # Ensure this line is there
         self.notebook = CustomNotebook(self._root)
         self.main_tab = tk.Canvas(self.notebook)
         self.notebook.add(self.main_tab, text="MainWindow")
@@ -292,8 +360,8 @@ class App:
         )
         self.notebook.pack(expand=True, fill="both")
 
-        self.algorithms = Algorithms()
         self.mainmenu = Menu(self._root)
+        self.algorithms = Algorithms()
 
         self.builder = self.builders[self.current_tab_index]
 
@@ -342,6 +410,8 @@ class App:
 
         toolmenu = Menu(self.mainmenu, tearoff=0)
         toolmenu.add_command(label="Add new tab", command=self.add_new_tab)
+        toolmenu.add_command(label="Add new Node", command=self.add_r_node)
+        toolmenu.add_command(label="Load background image", command=self.load_bg_image)
 
         self.menus.append(toolmenu)
 
@@ -390,6 +460,17 @@ class App:
         self.builders.update({self.notebook.index(new_tab): b})
         return b
 
+    def add_r_node(self):
+        self.builder.add_random_node()
+
+    def load_bg_image(self):
+        bg_image_path = self.builder.file_manager.get_path_to_image()
+        bg = tk.PhotoImage(file=bg_image_path)
+        self.builder.canvas.bg_id = self.builder.canvas.create_image(
+            0, 0, image=bg, anchor="nw"
+        )
+        self.builder.canvas.bg_image = bg
+
     def save_graph(self):
         graph = self.builder.get_graph()
         if not self.builder.from_file:
@@ -432,9 +513,7 @@ class App:
         def __init__(self, root):
             self.root = root
             self.console = tk.Text(self.root, height=4, font=("Arial", 16))
-            self.console.config(state=tk.DISABLED)
             self.console.pack(fill=tk.X)
-            # self.clear_button = tk.Button(root, text="⁝", command=self.clear_text, fg='white', relief=tk.FLAT, width=1, height=1, padx=10, pady=3, font=("Arial", 16), borderwidth=0)
             self.clear_button = tk.Button(
                 root,
                 text="X",
@@ -487,6 +566,7 @@ def main():
     _root = tk.Tk()
     _root.title("Graph Builder")
     _root.resizable(True, True)
-    _root.configure(background="#f2eb22")
+
     app = App(_root)
+    # app.load_bg()
     app.render()

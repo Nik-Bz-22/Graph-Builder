@@ -8,13 +8,19 @@ class SelectionArea:
 
     def on_mouse_down_s(self, event):
         try:
-            item_id = self.canvas.find_overlapping(event.x - 1, event.y - 1, event.x + 1, event.y + 1)[0]
-            if not self.canvas.gettags(item_id) == ("node",):
+            items_id = self.canvas.find_overlapping(
+                event.x - 1, event.y - 1, event.x + 1, event.y + 1
+            )
+            items_id = list(items_id)
+            try:
+                items_id.remove(self.canvas.bg_id)
+            except ValueError:
+                pass
+
+            if "node" in self.canvas.gettags(items_id[0]):
                 return
-            # if "node" in self.canvas.gettags(item_id):
-            #     print("noda tyt", item_id)
-            #     return
-        except IndexError as er:
+
+        except IndexError:
             pass
 
         self.start_x = event.x
@@ -30,6 +36,7 @@ class SelectionArea:
         else:
             # print("error")
             pass
+
     def on_mouse_release(self, event):
         if not self.rect_id:
             return

@@ -77,7 +77,12 @@ class FileManager:
             except Exception as e:
                 print(f"Error opening file: {e}")
 
+    @staticmethod
+    def get_path_to_image() -> str:
+        file_path = filedialog.askopenfilename(filetypes=[("Image", ["*.png"])])
+        return file_path
+
 
 if __name__ == "__main__":
     f = FileManager()
-    f.read_txt_with_pos(filepath=ROOT_DIR / "dataGraph.txt")
+    f.read_txt_with_pos(filepath=str(ROOT_DIR / "dataGraph.txt"))
