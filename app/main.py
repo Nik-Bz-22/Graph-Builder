@@ -223,7 +223,7 @@ class GBuilder(MouseHandler):
             builder.canvas.bind("<Double-Button-3>", builder.double_right_click)
             # add event handlers for key "a"
             builder.canvas.bind("<a>", builder.double_right_click)
-            builder.canvas.bind("<Control-z>", builder.undo)
+            # builder.canvas.bind("<Control-z>", builder.undo)
 
             builder.canvas.tag_bind(
                 "node", "<Button-3>", builder.canvas_mouse_right_click
